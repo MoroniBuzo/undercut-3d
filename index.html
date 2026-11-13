@@ -3210,9 +3210,9 @@ function makeHostRoom(code){
     c.on('message', (topic, payload) => {
       if(closed || !topic.startsWith(T + '/p/')) return;
       const cid = topic.slice(T.length + 3), d = parseMsg(payload);
-      if(!d || typeof d !== 'object' || JSON.stringify(d).length > 4096){ if(others.delete(cid)) rebuild(); return; }
+      if(!d || typeof d !== 'object' || JSON.stringify(d).length > 4096){ const o = others.get(cid); if(o && o.conn === c){ others.delete(cid); rebuild(); } return; }
       if(d.pid) for(const [k, o] of others) if(k !== cid && o.presence && o.presence.pid === d.pid) others.delete(k);   // recargó la página
-      others.set(cid, {peer: cid, presence: d, updatedAt: Date.now()});
+      others.set(cid, {peer: cid, presence: d, updatedAt: Date.now(), conn: c});
       rebuild();
     });
     c.on('connect', queue);                         // al reconectar, vuelve a publicar la sala
@@ -3258,17 +3258,17 @@ function makeClientRoom(code){
     leave(){
       closed = true; const c = conn; conn = null;
       if(c){ try{ c.publish(MY, '', {qos:1, retain:true}, () => { try{ c.end(); }catch(e){} }); }catch(e){} setTimeout(() => { try{ c.end(true); }catch(e){} }, 1500); }
-      cands.forEach(x => { if(x !== c){ try{ x.end(true); }catch(e){} } });
+      cands.forEach(x => { if(x !== c){ try{ x.end(); }catch(e){} } });
       return Promise.resolve();
     }
   };
   return new Promise((res, rej) => {
     const timer = setTimeout(() => {
-      if(conn) return; closed = true; cands.forEach(x => { try{ x.end(true); }catch(e){} });
+      if(conn) return; closed = true; cands.forEach(x => { try{ x.end(); }catch(e){} });
       rej({type: cands.length ? 'peer-unavailable' : 'network'});
     }, 8000);
     BROKERS.forEach(url => connectBroker(url, {topic: MY}).then(c => {
-      if(closed || conn){ try{ c.end(true); }catch(e){} return; }
+      if(closed || conn){ try{ c.end(); }catch(e){} return; }
       cands.push(c);
       c.on('message', (topic, payload) => {
         if(topic !== ROOM || closed) return;
@@ -3276,7 +3276,7 @@ function makeClientRoom(code){
         if(!conn){
           if(!d || d.t !== 'room') return;           // en este servidor no está la sala
           conn = c; clearTimeout(timer);
-          cands.forEach(x => { if(x !== c){ try{ x.end(true); }catch(e){} } });
+          cands.forEach(x => { if(x !== c){ try{ x.end(); }catch(e){} } });
           c.on('connect', pub);                       // al reconectar, vuelve a anunciarse
           handle(d); res(api); return;
         }
