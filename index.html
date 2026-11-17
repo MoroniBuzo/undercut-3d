@@ -2720,8 +2720,7 @@ var qrcode = function() {
     </div>
     <div class="stbuild" id="stBuild"></div>
     <div class="stbar" id="stBar"></div>
-    <div class="stsugt">Sugerencias del ingeniero (toca una para usarla):</div>
-    <div class="stsug" id="stSug"></div>
+    <div class="stsug hidden" id="stSug"></div>
     <button class="btn stop" id="stGo" style="width:100%;margin-top:12px">LISTO</button>
     <p class="muted" style="margin:8px 0 0">Si sale Safety Car o lluvia, te vamos a preguntar si quieres aprovechar para parar.</p>
   </div>
@@ -4430,17 +4429,9 @@ function resetView(){
 /* -------- armar estrategia -------- */
 let SP = null;                                           // estrategia que se está armando en pantalla
 function initStrat(){
-  const sug = suggestPlans()[0];
-  SP = {s: sug.s, n: sug.p.length, p: sug.p.map(x => ({...x}))};
+  SP = {s: 'M', n: 1, p: [{lap: 25, x: 'H'}]};               // punto de partida neutro (sin sugerencias)
   const fc = $('stInfo');
   fc.innerHTML = `${P.N} vueltas · paradas entre la <b>V${P.PIT_MIN}</b> y la <b>V${P.PIT_MAX}</b> · máximo <b>2 paradas</b> sin repetir compuesto<br>Pronóstico: lluvia <b>${Math.round(RS.rainProb*100)} %</b> · Safety Car <b>${Math.round(RS.scProb*100)} %</b>`;
-  const box = $('stSug'); box.innerHTML = '';
-  for(const o of suggestPlans().slice(0, 4)){
-    const b = document.createElement('button'); b.className = 'chip2';
-    b.textContent = [o.s, ...o.p.map(s => s.x)].map(x => TYRE_NAME[x]).join(' → ') + ' · ' + o.p.map(s => 'V' + s.lap).join(', ');
-    b.onclick = () => { SP = {s: o.s, n: o.p.length, p: o.p.map(x => ({...x}))}; renderStrat(); };
-    box.appendChild(b);
-  }
   renderStrat();
 }
 function fixSP(){
@@ -4488,9 +4479,9 @@ function drawStint(){
   const bar = $('stBar'); bar.innerHTML = '';
   const st = [{x: SP.s, a: 0}, ...SP.p.map(s => ({x: s.x, a: s.lap}))];
   st.forEach((s, i) => {
-    const b = i + 1 < st.length ? st[i+1].a : P.N, n = b - s.a, w = stintWarn(s.x, n);
-    const d = document.createElement('div'); d.className = 'stseg lv' + w.lvl; d.style.flex = n; d.style.background = TCOL[s.x];
-    d.innerHTML = `<b>${TYRE_NAME[s.x]}</b><small>${n} v · ${w.txt}</small>`; bar.appendChild(d);
+    const b = i + 1 < st.length ? st[i+1].a : P.N, n = b - s.a;
+    const d = document.createElement('div'); d.className = 'stseg'; d.style.flex = n; d.style.background = TCOL[s.x];
+    d.innerHTML = `<b>${TYRE_NAME[s.x]}</b><small>${n} v</small>`; bar.appendChild(d);
   });
 }
 function sendPlan(){ sendAct({plan: {s: SP.s, p: SP.p.map(s => ({lap: s.lap, x: s.x}))}}); updateStrat(); }
